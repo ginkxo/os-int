@@ -1,0 +1,484 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <libgen.h>
+#include "ext2.h"
+
+unsigned char * disk;
+
+#define SINGLE_POINTER_COUNT 12
+#define DISK_SECTOR 512
+
+typedef struct {
+
+	int flags[2];
+
+} duoflag;
+
+int DSR = EXT2_BLOCK_SIZE / DISK_SECTOR; // disk sector ratio
+
+int addAsDirEntry(char * filepath, int fileInode, int parentInode) {
+
+	return 0;
+
+}
+
+int readAndCopy(char * filepath, int filesizeBytes, int dirParInodeNum) {
+
+	// subfunctions: fileSize, calculateSpace, emptyAvailableBlocks, editBitmap, storeDataInBlock
+	return 0;
+
+}
+
+int storeDataInBlock(int blockNumber) {
+	// stores in a block
+	return 0;
+
+}
+
+int calculateSpace(int filesize) {
+	// returns -1 if not enough space in blocks
+	return 0;
+}
+
+
+int editBitmap(int bitmapNumber, int inodeOrBlock) {
+
+	// if 0, inode, if 1, block bitmap
+	// returns 0 on success
+
+	return 0;
+
+}
+
+int * emptyAvailableBlocks() {
+
+	// iterates through the bitmap and retrieves all available block numbers in an array
+	// may have to malloc
+	// returns array
+
+	int var[] = {0,0}; // placeholder
+	return var; 
+
+}
+
+int allocateNewFileInode(int filesizeBytes) {
+
+	struct ext2_super_block * superBlock = (struct ext2_super_block *)(disk + EXT2_BLOCK_SIZE * 1);
+	struct ext2_group_desc * blockGp = (struct ext2_group_desc *)(disk + EXT2_BLOCK_SIZE * 2);
+
+	if (superBlock->s_free_inodes_count == 0 || superBlock->s_free_blocks_count == 0) {
+		// FAILURE, NO SPACE	
+		return -1; // ENOSPC, fix later
+	}
+
+	unsigned char * inodeTable = (unsigned char *)(disk + EXT2_BLOCK_SIZE * blockGp->bg_inode_table);
+	
+	int freeInodes = superBlock->s_free_inodes_count;
+	int numInodes = superBlock->s_inodes_count;
+	int totalInodes = freeInodes + numInodes; // is this actually equal
+	int currInodeID;
+	int firstEmptyInode = -1;
+
+	for (currInodeID = EXT2_ROOT_INO - 1; currInodeID < totalInodes; currInodeID++) {
+
+		if (currInodeID >= EXT2_GOOD_OLD_FIRST_INO) {
+
+			struct ext2_inode * inode = (struct ext2_inode *)(inodetable + currInodeID * sizeof(struct ext2_inode));
+
+			if (!inode->i_size) { // THIS COULD SEGFAULT ...
+
+				firstEmptyInode = currInodeID;
+				break; // the first inode slot from the front that is "empty"
+
+			}
+
+		}
+
+	} // if this does segfault, we will change iteration to numInodes instead
+
+	if (firstEmptyInode == -1) {
+		// some kind of error i guess
+		return -1;
+	}
+
+	struct ext2_inode * newInode = (struct ext2_inode *)(inodetable + firstEmptyNode * sizeof(struct ext2_inode));	
+	
+
+	newInode->i_mode = EXT2_S_IFREG;
+	newInode->i_uid = 0;
+	newInode->i_size = filesizeBytes; // default for new directories
+	newInode->i_gid = 0;
+	newInode->i_links_count = 0; // . and ..
+	newInode->i_blocks = (filesizeBytes / DISK_SECTOR) + 1; // currently set to 2
+	newInode->osd1 = 0;
+
+	newInode->i_generation = 0;
+	newInode->i_file_acl = 0;
+	newInode->i_dir_acl = 0;
+	newInode->i_faddr = 0;
+
+	newInode->extra[0] = 0;
+	newInode->extra[1] = 0;
+	newInode->extra[2] = 0;
+
+	// NEED TO ALLOCATE BLOCKS HERE
+	
+	/////// Might move these to until after block allocation is successful! ////////
+	superBlock->s_inodes_count = superBlock->s_inodes_count + 1;
+	superBlock->s_free_inodes_count = superBlock->s_free_inodes_count - 1;
+
+	blockGp->bg_free_inodes_count = blockGp->bg_free_inodes_count - 1;
+	// blockGp->bg_used_dirs_count = blockGp->bg_used_dirs_count + 1;
+
+	return firstEmptyNode;
+}
+
+
+int goodPath(char * basePath, char * localPath) {
+
+	// SOMETHING TO CHANGE FOR LATER:
+	// MAKE SURE ALL INODE NUMBERS ARE IN FACT INODE NUMBERS - 1 WHEN GOING BETWEEN INODES
+
+	// returns:
+	// -2 if: already an entry with the same name (EEXIST)
+	// -1 if: the pathname does not exist (ENOENT)
+	// -1 
+	// inodeID -> need to make sure that this is the actual id, not the name
+
+	// struct ext2_super_block * superBlock = (struct ext2_super_block *)(disk + EXT2_BLOCK_SIZE * 1);
+
+	struct ext2_group_desc * blockGp = (struct ext2_group_desc *)(disk + EXT2_BLOCK_SIZE * 2);
+	unsigned char * inodeTable = (unsigned char *)(disk + EXT2_BLOCK_SIZE * blockGp->bg_inode_table);
+
+	// INITIALIZATIONS
+
+	int inodeID = EXT2_ROOT_INO - 1;
+
+	int basePathLen = strlen(basePath);
+	char basepath[basePathLen+1];
+	memset(basepath, 0, sizeof(basepath));
+	strncpy(basepath, basePath, basePathLen+1);
+
+	char * directoryToCreateConstant = basename(basepath);
+	char * pathnameConstant = dirname(basepath);
+
+	int lenpathname = strlen(pathnameConstant);
+
+	char dirToCreate[EXT2_NAME_LEN+1];
+	char pathname[lenpathname+1];
+
+	memset(dirToCreate, 0, sizeof(dirToCreate));
+	memset(pathname, 0, sizeof(pathname));
+
+	strncpy(dirToCreate, directoryToCreateConstant, EXT2_NAME_LEN+1);
+	strncpy(pathname, pathnameConstant, lenpathname+1);
+
+	// LOCALPATH INITIALIZATION
+
+	int localPathLen = strlen(localPath);
+	char localpath[localPathLen+1];
+	memset(localpath, 0, sizeof(localpath));
+	strncpy(localpath, localPath, localPathLen+1);
+
+	char * localfileConstant = basename(localpath);
+
+	int lenlocalfile = strlen(localfileConstant);
+	char localfile[lenlocalfile+1];
+	memset(localfile, 0, sizeof(localfile));
+	strncpy(localfile, localfileConstant, lenlocalfile+1);
+
+	// STRTOK INITIALIZATION
+
+	char * parentDir;
+	char * childDir;
+
+	parentDir = strtok(pathname, "/");
+	childDir = strtok(NULL, "/");
+
+	char dotRef[EXT2_NAME_LEN] = ".";
+
+	// BREAKDOWN OF FUNCTION:
+	// we check the path as normal until the last token, as usual
+	// we look for the last token in the parent inode directory:
+		// if we do not find it, return {1, parentInode} where we have to create the file with this name ("dirToCreate") (hence 1) with parentInode as the parent
+		// if we find it:
+			// if it is a file, return {0, -2} (eexist)
+			// if it is a directory:
+				// iterate through the directory, and check for localfile match:
+					// if we find a match, return {0, -2} (eexist)
+					// if we don't, return {0, thisDirInode} where we have to create the file with the localfile name (hence 0) with thisDirInode as the parent
+
+	
+	while (parentDir != NULL && inodeID != -1) {
+
+		if (strncmp(parentDir, dotRef, lenpathname) == 0 && childDir == NULL) {
+			// this is the directory in which we have to create what is currently the parent
+			// have to check that the name of the parentDir isn't identical to any entries here!
+
+			struct ext2_inode * rootInode = (struct ext2_inode *)(inodeTable + inodeID * sizeof(struct ext2_inode));
+
+			int numBlocks = rootInode->i_blocks / DSR; 
+			int blocknum;
+
+			for (blocknum = 0; blocknum < numBlocks; blocknum++) {
+
+				int rootEntBlock = rootInode->i_block[blocknum];
+				int rootEntBlockIterator = 0;
+
+				while (rootEntBlockIterator < EXT2_BLOCK_SIZE) {
+					
+					struct ext2_dir_entry * dirEntry = (struct ext2_dir_entry *)(disk + EXT2_BLOCK_SIZE * rootEntBlock + rootEntBlockIterator);
+
+					char * dirEntryName = dirEntry->name;
+					int dirEntryInodeID = dirEntry->inode - 1;
+					
+					if (strncmp(dirToCreate, dirEntryName, EXT2_NAME_LEN) == 0) {
+						// there is a directory or a file with the name <dirToCreate> in the root directory
+						if (dirEntry->file_type == EXT2_FT_REG_FILE) {
+
+							return {0, -2}; // EEXIST
+
+						} else if (dirEntry->file_type == EXT2_FT_DIR) {
+
+							// need to check if this directory has our localfile
+
+							struct ext2_inode * finalDirInode = (struct ext2_inode *)(inodeTable + dirEntryInodeID * sizeof(struct ext2_inode));
+
+							int numBlocksF = finalDirInode->i_blocks / DSR;
+							int blocknumF;
+
+							for (blocknumF = 0; blocknumF < numBlocksF; blocknumF++) {
+
+								int fEntBlock = finalDirInode->i_block[blocknumF];
+								int fEntBlockIterator = 0;
+
+								while (fEntBlockIterator < EXT2_BLOCK_SIZE) {
+
+									struct ext2_dir_entry * dirEntryF = (struct ext2_dir_entry *)(disk + EXT2_BLOCK_SIZE * fEntBlock + fEntBlockIterator);
+
+									char * dirEntryNameF = dirEntryF->name;
+
+									if (strncmp(localfile, dirEntryNameF, EXT2_NAME_LEN) == 0) {
+
+										return {0, -2}; //EEXIST
+									}
+
+
+								}
+
+
+							}
+
+							return {0, dirEntryInodeID};
+
+
+
+						}
+					}
+
+					rootEntBlockIterator = rootEntBlockIterator + dirEntry->rec_len;
+					
+				}
+
+			}
+
+			
+			// we are good to go for trying to create the directory here. return the inode number
+
+			return {1,EXT2_ROOT_INO - 1}; // since first flag is 1, we need to copy the file into the root directory with the name given in dirEntryName
+		}
+
+		struct ext2_inode * directoryInode = (struct ext2_inode *)(inodeTable + inodeID * sizeof(struct ext2_inode));
+
+		// need to iterate through entries in directoryInode 
+
+		int directoryExists = 0;
+		int newInodeID = -1;
+		int numbks = directoryInode->i_blocks / DSR;
+		int curr;
+
+		for (curr = 0; curr < numbks; curr++) {
+
+			int directoryEntryBlock = directoryInode->i_block[curr];
+			int dirEntBlockIterator = 0;
+
+		// ADDTHE FOR LOOP HERE LATER 
+
+			while (dirEntBlockIterator < EXT2_BLOCK_SIZE) {
+		
+				struct ext2_dir_entry * directoryEntry = (struct ext2_dir_entry *)(disk + EXT2_BLOCK_SIZE * directoryEntryBlock + dirEntBlockIterator);
+			
+				char * dirEntName = directoryEntry->name;
+				int dirEntInodeID = directoryEntry->inode - 1;
+
+				if (strncmp(parentDir, dirEntName, lenpathname) == 0) {
+				// THE NAME of the current looked directory is in this directory!
+
+					if (directoryEntry->file_type == EXT2_FT_REG_FILE) {
+					// ERROR : NAME OF FLE
+						return {-1, 0}; // ENOENT
+					} else if (directoryEntry->file_type == EXT2_FT_DIR) {
+						directoryExists = 1;
+						newInodeID = dirEntInodeID;
+						break;
+					}
+
+				}
+
+				dirEntBlockIterator = dirEntBlockIterator + directoryEntry->rec_len;
+
+			} // CLOSES dirEntBlockIterator while loop
+
+			if (newInodeID != -1) {
+				break;
+			}
+
+		}
+
+		if ((!directoryExists) || newInodeID == -1) {
+			// pathname is not linked
+			// ERROR
+			return {-1, 0}; // ENOENT
+		} else {
+
+			parentDir = childDir;
+			childDir = strtok(NULL,"/");
+			inodeID = newInodeID;
+			directoryExists = 0;
+			
+		}
+
+
+	} // CLOSES inodeID while loop
+
+	// FINALLY, NEED TO CHECK THE LAST DIRECTORY.
+	// this is stored in inodeID.
+
+	struct ext2_inode * finalDirectoryInode = (struct ext2_inode *)(inodeTable + inodeID * sizeof(struct ext2_inode));
+
+	int numblocksFinalDir = finalDirectoryInode->i_blocks / DSR;
+	int currblock;
+
+	for (currblock = 0; currblock < numblocksFinalDir; currblock++) {
+		
+		int finalEntBlock = finalDirectoryInode->i_block[currblock];
+		int finalEntBlockIterator = 0;
+
+		while (finalEntBlockIterator < EXT2_BLOCK_SIZE) {
+
+			struct ext2_dir_entry * currDirEntry = (struct ext2_dir_entry *)(disk + EXT2_BLOCK_SIZE * finalEntBlock + finalEntBlockIterator);
+
+			char * currDirEntName = currDirEntry->name;
+
+			if (strncmp(dirToCreate, currDirEntName, EXT2_NAME_LEN) == 0) {
+
+				if (currDirEntry->file_type == EXT2_FT_REG_FILE) {
+
+					return {0,-2} //EEXISTS
+
+				} else if (currDirEntry->file_type == EXT2_FT_DIR) {
+
+
+
+					struct ext2_inode * finalDirInode = (struct ext2_inode *)(inodeTable + dirEntryInodeID * sizeof(struct ext2_inode));
+
+					int numBlocksF = finalDirInode->i_blocks / DSR;
+					int blocknumF;
+
+					for (blocknumF = 0; blocknumF < numBlocksF; blocknumF++) {
+
+						int fEntBlock = finalDirInode->i_block[blocknumF];
+						int fEntBlockIterator = 0;
+
+						while (fEntBlockIterator < EXT2_BLOCK_SIZE) {
+
+							struct ext2_dir_entry * dirEntryF = (struct ext2_dir_entry *)(disk + EXT2_BLOCK_SIZE * fEntBlock + fEntBlockIterator);
+
+							char * dirEntryNameF = dirEntryF->name;
+
+							if (strncmp(localfile, dirEntryNameF, EXT2_NAME_LEN) == 0) {
+
+								return {0, -2}; //EEXIST
+							}
+
+
+						}
+
+
+					}
+
+					return {0, dirEntryInodeID};
+
+				}
+
+			}
+
+			finalEntBlockIterator = finalEntBlockIterator + currDirEntry->rec_len;
+
+		}
+
+	}
+	
+	return {1,inodeID}; // this means we need to create the file named in <dirToCreate> in the parent directory pointed by inodeID, b/c with a/b/c.txt, c.txt doesn't exist
+
+	// we might need to return something about which inode to make or something ...
+
+}
+
+
+int copy(char * localPath, char * pathname) {
+
+	int pathLen = strlen(pathname);
+	char diskPath[pathLen+1];
+	memset(diskPath, 0, sizeof(diskPath));
+	strncpy(diskPath, pathname, pathLen+1);
+
+	if (diskPath[pathLen-1] == '/') {
+		diskPath[pathLen-1] = 0;
+	}
+
+	if (diskPath[0] == '/') {
+		memmove(diskPath, diskPath+1, pathLen);
+	}
+
+	int localPathGood = open(localPath, O_RDONLY);
+
+	if (localPathGood == -1) {
+		// ERROR
+		exit(1); // fix for proper error later
+	}
+
+	int directoryParentInodeNum = goodPath(diskPath, localPath);
+
+}
+
+int main(int argc, char ** argv) {
+
+    if(argc != 3) {
+        fprintf(stderr, "Usage: %s <image file name> <absolute path>\n", argv[0]);
+        exit(1);
+    }
+    int fd = open(argv[1], O_RDWR);
+
+    disk = mmap(NULL, 128 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if(disk == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
+
+	int f;
+
+	f = copy(argv[2], argv[3]);
+
+	if (f == -1) {
+		return -1; // exit accordingly
+	}
+	
+	return 0;
+
+}

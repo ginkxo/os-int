@@ -1,0 +1,59 @@
+CSC369 A3 PROGRESS
+
+x PART 0 :	
+	x read all C files in detail, make notes
+
+x PART 1 : ADDRESS TRANSLATION AND PAGING
+	x pagetable.c code :
+		x find_physpage
+			x use top-level pg directory to get ptr to 2nd lvl
+			x use vaddr to get index into 2nd-level pg tbl, init p
+			x check if p valid or not, swap or not
+				x handle
+			x make sure p is marked valid, referenced
+				x mark p dirty if acc-type indicates will be written to
+			x call replacement algorithm's ref_fcn for page
+
+_ PART 2 : PAGE REPLACEMENT ALGORITHMS
+	x FIFO.C
+		x fifo_init
+		x fifo_ref
+		x fifo_evict
+	_ LRU.C
+		x lru_init
+		? lru_ref
+		? lru_evict
+	x CLOCK.C
+		x clock_init
+		x clock_ref
+		x clock_evict
+	_ OPT.C
+		_ opt_init
+		_ opt_ref
+		_ opt_evict
+	_ run programs
+		_ programs 1 - 3 in traceprogs
+		_ a fourth program of your choosing with interesting memory behaviour
+		_ USE ALL FIVE ALGOS (rand, fifo, lru, clock, opt)
+		_ memory sizes: 50, 100, 150, 200
+		_ create tables:
+			_ hit rate
+			_ hit count
+			_ miss count
+			_ overall eviction count
+			_ clean eviction count
+			_ dirty eviction count
+
+_ PART 3 : CLEAN UP	
+	_ clean up and make nice all the code
+
+_ PART 4 : WRITE UP
+	_ README.pdf:
+		_ tables in task 2
+		_ describe fourth program and explain why mem behaviour was interesting
+		_ one paragraph :
+			_ COMPARE VARIOUS ALGOS IN TERMS OF RESULTS IN TABLES
+		_ one paragraph :	
+			_ EXPLAIN data obtained for LRU as memsize increases
+	_ PLAGIARISM.txt
+	_ INFO.txt

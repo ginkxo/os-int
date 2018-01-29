@@ -1,0 +1,27 @@
+NOTES ON EXT2_MKDIR:
+
+mkdir(img, path)
+
+	open the image fd
+	open the disk from the fd
+
+	# making sure the path is absolute
+
+	inodeParentDirIndex
+
+	getDirNameAndSetParentDirInodeIdx:
+
+		- gets the block group descriptor
+		- gets the head inode of the inode table
+		- searches i guess?
+
+	allocateFreeInodeIdx
+
+		- grabs blockgroup
+		- mask is 1
+		- gets the inode bitmap pointer
+		- loops through to get first empty bit
+		- that's the bit
+
+		- updates the inode bitmap
+		- 

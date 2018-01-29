@@ -1,0 +1,160 @@
+CSC369 ASSIGNMENT WORK
+
+_ create the makefile [100%]:
+	_ -Wall and no warnings
+	_ separate targets for all functions incl. bonus functions
+	_ invoking make compiles all targets
+
+_ ext2_mkdir [12%]:
+	
+	_ args: two
+		_ name of an ext2 formatted virtual disk
+		_ second is absolute path on ext2 virtual disk
+
+	_ mechanism:
+		_ create the final directory on the specified path on the virtual disk 
+		_ will require directory creation
+
+	_ errors:
+		_ EEXIST: if the directory already exists
+		_ ENOENT: if something on the specific dir path doesnt exist
+
+	_ notes:
+		_ directory entries should be aligned to 4B
+		_ entry names are not null-terminated
+		_ allocating a new inode/data block: use the next one available from corresponding bitnap
+		_ consider trailing slashes in paths
+
+_ ext2_cp [12%]:
+
+	_ args: three
+		_ name of an ext2 formatted virtual disk
+		_ path to a file on your native OS
+		_ third is an absolute path on ext2 formatted vdisk
+
+	_ mechanism:
+		_ copies the file from native file system into specified location on disk
+		_ will require read and write file stuff
+
+	_ errors:
+		_ EEXIST: if file already has same name
+		_ ENOENT: if the file does not exist or invalid target
+
+
+_ ext2_ln [12%]:
+
+	_ args: three 
+		_ name of ext2 formatted virtual disk
+		_ absolute path 1 on ext2 disk
+		_ absolute path 2 on ext2 disk
+
+	_ mechanism:
+		_ creates a link from the first specified file to the second specified path
+
+	_ errors:
+		_ ENOENT: if the source file doesnt exist
+		_ EEXIST: if the link name already exists
+		_ EISDIR: if a hardlink refers to a directory
+
+	_ extras:
+		_ can take an -s flag after the disk image argument
+		_ when used, program must create a symbolic link instead
+
+	_ notes:
+		_ do NOT implement fast symlinks
+		_ just store path in a data block regardless of length
+
+_ ext2_rm [14% + 5%]:
+
+	_ args: two
+		_ name of ext2 formatted virtual disk
+		_ absolute path to a file or link (NOT DIRECTORY) on that disk
+
+	_ mechanism:
+		_ removes the specified file from the disk
+
+	_ errors:
+		_ ENOENT: if the source file doesnt exist
+		_ EISDIR: if the path is a directory
+
+	_ notes:
+		_ no need to zero out data blocks
+		_ set i_dtime in the inode
+		_ removing a directory entry need not shift the dir ents after the one being deleted
+
+	_ bonus:
+		_ implement -r which allows removal of directories
+
+
+_ ext2_restore [20% + 5%]:
+
+	_ args: two
+		_ name of ext2 formatted virtual disk
+		_ absolute path to a file or link (NOT DIRECTORY) on that disk
+
+	_ mechanism:
+		_ restores the specified file that has previously been removed
+
+	_ errors:
+		_ ENOENT: if the file doesnt exist, or if file cant be restored
+		_ EISDIR: if the path is a directory
+
+	_ notes:
+		_ if the directory entry for the file not overwritten, still need to make sure the inode hasnt been reused, and none of the data blocks have been reallocatd. CAN ASSUME BITMAPS ARE RELIABLE INDICATORS OF THIS.
+		_ in testing, focus mostly on restoring files removed by ext2_rm
+
+	_ bonus:
+		_ implement -r which allows restoring directories
+
+_ ext2_checker [20%]:
+
+	_ args: one
+		_ name of ext2 formatted virtual disk
+
+	_ mechanism
+		_ implement a file system checker:
+			_ superblock/block group counters:
+				_ superblock and block group counters for free blocks and free inodes must match number of free inodes/data blocks indicated in respective bitmaps
+				_ if inconsistency:
+					_ trust bitmaps
+					_ update counters
+				_ output message, add Z values to total fix
+			_ inode i_mode match:
+				_ check if inode's i_mode matches the directory entry file_type
+				_ if inconsistency:
+					_ trust inode i_mode, fix file_type to match
+				_ output message, add inconsistency to total fix
+			_ inode mark/allocation in bitmap:
+				_ check if inode is marked as allocated in the inode bitmap
+				_ if inconsistency:
+					_ inode bitmap must be updated to indicate inode is in use
+					_ update corresp counters in block group and superblock
+				_ output message, add inconsistencies to total fix
+			_ inode i_dtime set to 0:
+				_ check if i_dtime is set to 0
+				_ if not:
+					_ reset to 0 to indicate the file should not be marked for removal
+				_ output message, add inconsistencies to total fix
+			_ data block allocation:
+				_ check all its data blocks allocated in bitmap
+				_ if some not:
+					_ update the bitmap
+					_ also update counters in block group and superblock
+				_ output message, add inconsistencies to total fix
+		_ count all fixed inconsistencies
+		_ produce a final message
+
+> disk stuff:
+	> disk = 128 blocks
+	> block = 1024 bytes
+	> total bytes = 128 * 1024 = 131072 bytes
+	> inodes = 32
+	> root inode: inode 2 (index 1)
+	> first 11 inodes (0-10) reserved
+	> always lost+found directory in root
+	> disk sectors = 512 bytes
+
+
+_ plagiarism.txt file [100%]
+
+_ INFO.txt file [100%]

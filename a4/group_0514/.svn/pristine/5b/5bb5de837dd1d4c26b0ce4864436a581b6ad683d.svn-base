@@ -1,0 +1,99 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include "ext2.h"
+
+int main(int argc, char ** argv) {
+
+	int i;
+
+	if(argc != 2) {
+		fprintf(stderr, "Usage: %s <image file name>\n", argv[0]);
+		exit(1);
+	}
+
+	int fd = open(argv[1], O_RDWR);
+
+	disk = mmap(NULL, 128 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if(disk == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
+
+	int number_of_fixes = 0;
+	
+	// PART A
+
+	int free_inodes = 0;
+
+	for(i = 1; i <= 32; i++){
+		// increment free inodes
+	}
+
+	// if (free_blocks != data_blocks_in_bitmap & free_inodes != free_inodes_in_bitmap)
+		//if the above is true, there exists an inconsistency
+		//fix the inconsistency (checker trusts bitmap and updates the counters)
+
+			// X stands for either "superblock" or "block group"
+			// Y is either "free blocks" or "free inodes"
+			// Z is the difference (in absolute value)
+			printf("Fixed: X's Y counter was off by Z compared to the bitmap");
+			number_of_fixes += Z;
+
+
+	// PART B
+
+	//for each file/directory/symlink
+		//if(curr_inode.i_mode != directory_entry.file_type)
+			//trust inode's i_mode and update file_type to match
+
+			//I is the inode number for each object
+			printf("Fixed: Entry type vs inode mismatch: inode [I]");
+			number_of_fixes++;
+
+	// PART C
+
+	//for each file/directory/symlink
+		//if(inode's mark != inode bitmap)
+			//update inode bitmap to show that it is in use
+			//update corresponding counters in block_group and superblock
+			//NOTE: everything should be consistent with the bitmap at this point
+
+			//I is the inode number for each object
+			printf("Fixed: inode [I] not marked as in-use");
+			number_of_fixes++;
+
+	// PART D
+
+	//for each file/directory/symlink
+		//if(inode.i_dtime != 0)
+			//reset it to 0... inode.i_dtime = 0
+
+			//I is the inode number for each object
+			printf("Fixed: valid inode marked for deletion: [I]");
+			number_of_fixes++;
+
+	// PART E
+
+	//for each file/directory/symlink
+		//if(!allDataBlocksAllocatedInDataBitmap)
+			//fix unallocated block by updating the bitmap
+			//update corresponding counters in block group and superblock
+			//NOTE: everything should be consistent with the bitmap at this point
+
+			//D is the number of data blocks fixed
+			//I is the inode number for each object
+			printf("Fixed: D in-use data blocks not marked in data bitmap for inode: [I]");
+			number_of_fixes++;
+
+
+
+	if(number_of_fixes == 0) {
+		printf("No file system inconsistencies detected!");
+	} else {
+		printf("%d file system inconsistencies repaired!", number_of_fixes);
+	}
+
+	return 0;
+
+}

@@ -1,0 +1,173 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <libgen.h>
+#include <math.h>
+#include "ext2.h"
+
+unsigned char * disk;
+
+int countAllocatedInBitmap(unsigned char * bitmap, int numBytes) {
+
+	// this is a variation on the "firstEmptyInBitmap" function
+
+	int byte;
+	int bit;
+	int numAllocated = 0;
+	for (byte = 0; byte < numBytes; byte++) {
+		for (bit = 0; bit < 8; bit++) {
+			int inUse = !((bitmap[byte] & (1 << bit)) == 0);
+			if (!inUse) {
+				numAllocated = numAllocated + 1;
+			}
+
+		}
+	}
+
+	return numAllocated; // NO EMPTY BLOCKS/INODES
+
+}
+
+int main(int argc, char ** argv) {
+
+	int i;
+
+	if(argc != 2) {
+		fprintf(stderr, "Usage: %s <image file name>\n", argv[0]);
+		exit(1);
+	}
+
+	int fd = open(argv[1], O_RDWR);
+
+	disk = mmap(NULL, 128 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if(disk == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
+
+	int number_of_fixes = 0;
+	
+	// PART A
+
+	int free_inodes = 0;
+
+	for(i = 1; i <= 32; i++){
+		// increment free inodes
+	}
+
+	// if (free_blocks != data_blocks_in_bitmap & free_inodes != free_inodes_in_bitmap)
+		//if the above is true, there exists an inconsistency
+		//fix the inconsistency (checker trusts bitmap and updates the counters)
+
+			// X stands for either "superblock" or "block group"
+			// Y is either "free blocks" or "free inodes"
+			// Z is the difference (in absolute value)
+			printf("Fixed: X's Y counter was off by Z compared to the bitmap");
+			number_of_fixes += Z;
+
+	//// for this part:
+	//// iterate through the bitmaps
+	//// for each "1" in the bitmap, add a counter
+	//// compare the counters
+	//// differing counters -> fix the counts in the blocks
+	//// i'll quickly provide the bitmap function for this
+
+	//// here is how to use it:
+	struct ext2_super_block * superBlock = (struct ext2_super_block *)(disk + EXT2_BLOCK_SIZE * 1);
+	struct ext2_group_desc * blockGp = (struct ext2_group_desc *)(disk + EXT2_BLOCK_SIZE * 2);
+
+	unsigned char * bitmap_bits = (unsigned char *)(disk + EXT2_BLOCK_SIZE * blockGp->bg_block_bitmap); // example of how to get char rep of bitmap bits
+
+	int numAllocatedBlocks = countAllocatedInBitmap(bitmap_bits, (superBlock->s_blocks_count)/8);
+
+	//// IF you want to change this to "numFreeInodes", in the countAllocatedInBitmap function, change (!inUse) to (inUse) (will count 0's, not 1's, in the bitmap)
+	//// for this function, to count inodes, you pass in inode_bits (get it from bg_inode_bitmap) and superBlock->s_inodes_count / 8 is the second argument 
+
+
+	// PART B
+
+	//for each file/directory/symlink
+		//if(curr_inode.i_mode != directory_entry.file_type)
+			//trust inode's i_mode and update file_type to match
+
+			//I is the inode number for each object
+			printf("Fixed: Entry type vs inode mismatch: inode [I]");
+			number_of_fixes++;
+
+	//// PART B can be a little tricky. it might be best to leave it for last even
+	//// two ways to go about it:
+	//// 1. recursion through the root directory, checking every directory for the dirEntries, and then checking the corresponding inodes
+	//// note: inode number in a dir entry: subtract it by 1 to get the inode index
+	//// 2. loop through all inodes and for every inode that is a directory, check its dir entries, and then check the inodes for each of those dir entries as above
+	//// when looping through inodes we go i = 1; i < 32 (or s_inode_count) ; i++
+	//// to check if an inode is a directory: check it's i_mode (we are trusting this to be a dir anyway)
+	//// to get the dir entries of a directory: 
+	////	in ext2_mkdir, i placed ////-comments above and below the section that searches through dir entries in a directory inode
+	////	ctrl+f in ext2_mkdir: //// LOOK HERE TO SEE HOW TO LOOP THROUGH DIR ENTRIES: and //// LOOK UP THERE TO SEE HOW TO LOOP THROUGH DIR ENTRIES
+
+	// PART C
+
+	//for each file/directory/symlink
+		//if(inode's mark != inode bitmap)
+			//update inode bitmap to show that it is in use
+			//update corresponding counters in block_group and superblock
+			//NOTE: everything should be consistent with the bitmap at this point
+
+			//I is the inode number for each object
+			printf("Fixed: inode [I] not marked as in-use");
+			number_of_fixes++;
+
+	//// iterate through the inodes (i'm gonna ask abhi on the quickest way to do this anyway)
+	//// if any inode is actually allocated then just take its inode ID and do this code to mark it on the bitmap:
+
+	int inodeID;
+
+	int * inode_bits_int = (int *)(disk + EXT2_BLOCK_SIZE * blockGp->bg_inode_bitmap);
+	*inode_bits_int = *inode_bits_int | (1 << (inodeID));
+
+
+	// PART D
+
+	//for each file/directory/symlink
+		//if(inode.i_dtime != 0)
+			//reset it to 0... inode.i_dtime = 0
+
+			//I is the inode number for each object
+			printf("Fixed: valid inode marked for deletion: [I]");
+			number_of_fixes++;
+
+	//// just go through all the inodes, check if their dtime is nonzero, and reset it to 0
+
+	// PART E
+
+	//for each file/directory/symlink
+		//if(!allDataBlocksAllocatedInDataBitmap)
+			//fix unallocated block by updating the bitmap
+			//update corresponding counters in block group and superblock
+			//NOTE: everything should be consistent with the bitmap at this point
+
+			//D is the number of data blocks fixed
+			//I is the inode number for each object
+			printf("Fixed: D in-use data blocks not marked in data bitmap for inode: [I]");
+			number_of_fixes++;
+
+	//// go through all inodes
+	//// loop through their i_block array values to get the actual int numbers of their data blocks. e.g. inode->i_block[0] = 22, inode->i_block[1] = 33, etc
+	//// then just reuse the inode bitmap update code up there, but with the blocks
+	//// it doesn't matter if the bitmap values for blocks are 1 or 0, if 1 then 1 | 1 = 1, but if 0 then 0 | 1 = 1, so it will always just update unallocated bitmap blocks
+
+
+
+	if(number_of_fixes == 0) {
+		printf("No file system inconsistencies detected!");
+	} else {
+		printf("%d file system inconsistencies repaired!", number_of_fixes);
+	}
+
+	return 0;
+
+}

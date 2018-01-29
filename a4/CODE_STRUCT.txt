@@ -1,0 +1,26 @@
+MKDIR CODE STRUCTURE:
+
+	- get_real_rl
+	- firstTwoEmptyInBitmap
+	- firstEmptyInBitmap
+	- allocateNewDirInode
+	- addNewDirToParentDirEntList
+	- checkParentDirEntListSpaceExists
+	- allocateDirBlocks
+	- goodpath
+	- mkdir
+	- main
+
+	PIPELINE ORDER:
+
+	main
+		mkdir
+			goodpath
+			checkParentDirEntListSpaceExists
+			allocateNewDirInode
+			allocateDirBlocks
+			addNewDirToParentDirEntList
+			
+
+CP CODE STRUCTURE:
+
